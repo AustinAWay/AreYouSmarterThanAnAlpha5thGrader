@@ -120,6 +120,19 @@
     } catch (e) {}
   }
 
+  // Also enable start if they type a handle manually
+  const handleInput = $("#x-handle");
+  if (handleInput) {
+    handleInput.addEventListener("input", () => {
+      if (!authedUser) {
+        $("#btn-start").disabled = !handleInput.value.trim();
+      }
+    });
+    handleInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && handleInput.value.trim()) $("#btn-start").click();
+    });
+  }
+
   let chalkAnimId = null;
   let chalkDone = false;
 
@@ -281,7 +294,11 @@
 
   $("#btn-start").addEventListener("click", (e) => {
     e.stopPropagation();
-    if (!authedUser) return;
+    if (!authedUser) {
+      const raw = $("#x-handle")?.value?.trim();
+      if (!raw) return;
+      userHandle = raw.startsWith("@") ? raw : "@" + raw;
+    }
 
     currentLang = $("#lang-select").value;
 
