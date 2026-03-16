@@ -33,27 +33,29 @@ function base64url(buf) {
 
 // Step 1: redirect user to X authorization page
 app.get("/api/auth/twitter", (req, res) => {
-  const state = base64url(crypto.randomBytes(16));
-  const codeVerifier = base64url(crypto.randomBytes(32));
-  const codeChallenge = base64url(crypto.createHash("sha256").update(codeVerifier).digest());
+  const state = base64url(crypto.randomBytes(32));
+  const codeVerifier = base64url(crypto.randomBytes(48));
 
   req.session.oauthState = state;
   req.session.codeVerifier = codeVerifier;
+
+  const codeChallenge = base64url(crypto.createHash("sha256").update(codeVerifier).digest());
 
   const params = new URLSearchParams({
     response_type: "code",
     client_id: CLIENT_ID,
     redirect_uri: CALLBACK_URL,
-    scope: "tweet.read users.read",
+    scope: "users.read tweet.read offline.access",
     state: state,
     code_challenge: codeChallenge,
     code_challenge_method: "S256",
   });
 
   const authUrl = `https://x.com/i/oauth2/authorize?${params}`;
-  console.log("OAuth redirect to:", authUrl.substring(0, 100) + "...");
+  console.log("OAuth redirect - client_id:", CLIENT_ID?.substring(0, 8) + "...", "callback:", CALLBACK_URL, "verifier_len:", codeVerifier.length);
 
-  req.session.save(() => {
+  req.session.save((err) => {
+    if (err) console.error("Session save error:", err);
     res.redirect(authUrl);
   });
 });
@@ -92,7 +94,7 @@ app.get("/api/auth/twitter/callback", async (req, res) => {
     const accessToken = tokenData.access_token;
 
     // Fetch user profile
-    const userRes = await fetch("https://api.x.com/2/users/me?user.fields=profile_image_url,username", {
+    const userRes = await fetch("https://api.x.com/2/users/me?user.fields=username,name,profile_image_url", {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
 
