@@ -174,8 +174,9 @@ body {
   cursor: pointer;
   transition: background .15s;
 }
-.btn-chalk-cta:hover { background: rgba(255,255,255,.12); }
-.btn-chalk-cta:active { background: rgba(255,255,255,.18); }
+.btn-chalk-cta:hover:not(:disabled) { background: rgba(255,255,255,.12); }
+.btn-chalk-cta:active:not(:disabled) { background: rgba(255,255,255,.18); }
+.btn-chalk-cta:disabled { opacity: .25; cursor: not-allowed; }
 
 .btn-chalk {
   font-family: var(--font-body);
