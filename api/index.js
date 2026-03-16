@@ -40,8 +40,6 @@ app.get("/api/auth/twitter", (req, res) => {
   req.session.oauthState = state;
   req.session.codeVerifier = codeVerifier;
 
-  console.log("OAuth start - CLIENT_ID present:", !!CLIENT_ID, "CALLBACK_URL:", CALLBACK_URL);
-
   const params = new URLSearchParams({
     response_type: "code",
     client_id: CLIENT_ID,
@@ -52,7 +50,12 @@ app.get("/api/auth/twitter", (req, res) => {
     code_challenge_method: "S256",
   });
 
-  res.redirect(`https://twitter.com/i/oauth2/authorize?${params}`);
+  const authUrl = `https://x.com/i/oauth2/authorize?${params}`;
+  console.log("OAuth redirect to:", authUrl.substring(0, 100) + "...");
+
+  req.session.save(() => {
+    res.redirect(authUrl);
+  });
 });
 
 // Step 2: handle callback from X
@@ -65,7 +68,7 @@ app.get("/api/auth/twitter/callback", async (req, res) => {
 
   try {
     // Exchange code for access token
-    const tokenRes = await fetch("https://api.twitter.com/2/oauth2/token", {
+    const tokenRes = await fetch("https://api.x.com/2/oauth2/token", {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
@@ -89,7 +92,7 @@ app.get("/api/auth/twitter/callback", async (req, res) => {
     const accessToken = tokenData.access_token;
 
     // Fetch user profile
-    const userRes = await fetch("https://api.twitter.com/2/users/me?user.fields=profile_image_url,username", {
+    const userRes = await fetch("https://api.x.com/2/users/me?user.fields=profile_image_url,username", {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
 
