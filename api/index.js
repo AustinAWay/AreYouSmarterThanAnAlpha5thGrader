@@ -135,25 +135,63 @@ app.get("/api/auth/twitter/callback", (req, res) => {
 
       let xAvatar = "";
       let followersCount = 0;
+
+      // Try v1.1 API first
       try {
         const profileData = await new Promise((resolve) => {
           oa.get(
             `https://api.twitter.com/1.1/users/show.json?screen_name=${screenName}`,
             accessToken, accessTokenSecret,
             (pErr, pData) => {
-              if (pErr) { resolve(null); return; }
+              if (pErr) {
+                console.log("v1.1 profile fetch failed:", pErr?.statusCode || pErr);
+                resolve(null);
+                return;
+              }
               try { resolve(JSON.parse(pData)); } catch { resolve(null); }
             }
           );
         });
-        if (profileData?.profile_image_url_https) {
-          xAvatar = profileData.profile_image_url_https.replace("_normal", "");
-        }
-        if (profileData?.followers_count != null) {
-          followersCount = profileData.followers_count;
+        if (profileData) {
+          if (profileData.profile_image_url_https) {
+            xAvatar = profileData.profile_image_url_https.replace("_normal", "");
+          }
+          if (profileData.followers_count != null) {
+            followersCount = profileData.followers_count;
+          }
         }
       } catch (e) {
         console.error("Profile fetch error (non-fatal):", e.message);
+      }
+
+      // Fallback: try v2 API for user data
+      if (!followersCount) {
+        try {
+          const v2Data = await new Promise((resolve) => {
+            oa.get(
+              `https://api.twitter.com/2/users/${xId}?user.fields=public_metrics,profile_image_url`,
+              accessToken, accessTokenSecret,
+              (pErr, pData) => {
+                if (pErr) {
+                  console.log("v2 user fetch failed:", pErr?.statusCode || pErr);
+                  resolve(null);
+                  return;
+                }
+                try { resolve(JSON.parse(pData)); } catch { resolve(null); }
+              }
+            );
+          });
+          if (v2Data?.data) {
+            if (v2Data.data.public_metrics?.followers_count != null) {
+              followersCount = v2Data.data.public_metrics.followers_count;
+            }
+            if (!xAvatar && v2Data.data.profile_image_url) {
+              xAvatar = v2Data.data.profile_image_url.replace("_normal", "");
+            }
+          }
+        } catch (e) {
+          console.error("v2 profile fetch error (non-fatal):", e.message);
+        }
       }
 
       try {

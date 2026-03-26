@@ -269,11 +269,11 @@
       const badge = rank <= 3 ? medals[rank - 1] : rank;
       const cls = rank <= 3 ? ` lb-top` : "";
       const isYou = authedUser && entry.handle === authedUser.handle;
-      const fc = entry.followers_count;
-      const fcStr = fc >= 1000000 ? (fc/1000000).toFixed(1).replace(/\.0$/,"") + "M"
-                  : fc >= 1000 ? (fc/1000).toFixed(1).replace(/\.0$/,"") + "K"
-                  : fc > 0 ? String(fc) : "";
-      const fcTag = fcStr ? ` <span class="lb-fc">${fcStr}</span>` : "";
+      const fc = entry.followers_count || 0;
+      const fcStr = fc >= 1000000 ? (fc/1000000).toFixed(1).replace(/\.0$/,"") + "M followers"
+                  : fc >= 1000 ? (fc/1000).toFixed(1).replace(/\.0$/,"") + "K followers"
+                  : fc + " followers";
+      const fcTag = ` <span class="lb-fc">${fcStr}</span>`;
       html += `
         <div class="lb-row${cls}${isYou ? " lb-you" : ""}">
           <span class="lb-rank">${badge}</span>
