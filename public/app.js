@@ -105,7 +105,7 @@
 
   async function checkAuth() {
     try {
-      const res = await fetch("/api/auth/me");
+      const res = await fetch("/api/auth/me", { credentials: "same-origin" });
       if (res.ok) {
         authedUser = await res.json();
         $("#auth-prompt").classList.add("hidden");
@@ -622,11 +622,15 @@
   }
 
   async function saveResults(highestPassed, passedAll, totalCorrect, totalQuestions) {
-    if (!authedUser) return;
+    if (!authedUser) {
+      console.error("saveResults: no authedUser, skipping");
+      return;
+    }
     try {
-      await fetch("/api/results", {
+      const res = await fetch("/api/results", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
         body: JSON.stringify({
           grade_reached: highestPassed || "0",
           passed_all: passedAll,
@@ -637,6 +641,15 @@
           answers: state.answers,
         }),
       });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        console.error("saveResults failed:", res.status, err);
+        if (res.status === 401) {
+          authedUser = null;
+          window.location.href = "/api/auth/twitter";
+          return;
+        }
+      }
       fetchLeaderboard();
     } catch (e) {
       console.error("Failed to save results:", e);
