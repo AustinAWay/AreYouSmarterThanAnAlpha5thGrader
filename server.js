@@ -8,6 +8,9 @@ app.use(require("express").static(path.join(__dirname, "public")));
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
+app.get("/leaderboard", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "leaderboard.html"));
+});
 
 app.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}`);

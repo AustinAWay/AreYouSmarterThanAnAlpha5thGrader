@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Leaderboard — Are You Smarter Than a 5th Grader @ Alpha?</title>
+  <meta property="og:title" content="Leaderboard — Smarter Than a 5th Grader @ Alpha?" />
+  <meta property="og:description" content="See who's been tested — ranked by follower count." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fredericka+the+Great&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --board: #1e3a2e;
+      --chalk: rgba(255,255,255,.88);
+      --chalk-dim: rgba(255,255,255,.45);
+      --chalk-faint: rgba(255,255,255,.1);
+      --accent: #f7c948;
+      --green: #34d399;
+      --red: #f87171;
+      --radius: 4px;
+      --font-chalk: "Fredericka the Great", cursive;
+      --font-body: "Nunito", sans-serif;
+    }
+    html { font-size: 22px; }
+    body {
+      font-family: var(--font-body);
+      color: var(--chalk);
+      min-height: 100dvh;
+      background-color: var(--board);
+      background-image:
+        repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,.03) 2px, rgba(0,0,0,.03) 4px),
+        repeating-linear-gradient(90deg, transparent, transparent 3px, rgba(0,0,0,.015) 3px, rgba(0,0,0,.015) 6px);
+      display: flex; flex-direction: column; align-items: center;
+      padding: 2rem 1.5rem 3rem;
+    }
+    h1 {
+      font-family: var(--font-chalk);
+      font-size: clamp(1.6rem, 5vw, 2.4rem);
+      text-align: center;
+      margin-bottom: .3rem;
+    }
+    .subtitle {
+      font-size: .65rem; font-weight: 700;
+      color: var(--accent);
+      text-transform: uppercase; letter-spacing: .14em;
+      margin-bottom: 1.5rem;
+    }
+    .lb-container {
+      width: 100%; max-width: 480px;
+    }
+    .lb-row {
+      display: flex; align-items: center; gap: .6rem;
+      padding: .55rem .75rem;
+      background: rgba(0,0,0,.1);
+      border-bottom: 1px solid rgba(255,255,255,.03);
+    }
+    .lb-row:first-child { border-radius: var(--radius) var(--radius) 0 0; }
+    .lb-row:last-child { border-radius: 0 0 var(--radius) var(--radius); border-bottom: none; }
+    .lb-row.lb-top { background: rgba(0,0,0,.18); }
+    .lb-rank {
+      width: 1.6rem; flex-shrink: 0;
+      font-size: .75rem; font-weight: 800;
+      color: rgba(255,255,255,.2);
+      text-align: center;
+    }
+    .lb-top .lb-rank { font-size: .85rem; }
+    .lb-avatar {
+      width: 32px; height: 32px; border-radius: 50%;
+      border: 1.5px solid var(--chalk-faint);
+      flex-shrink: 0; background: rgba(255,255,255,.05);
+    }
+    .lb-info { flex: 1; min-width: 0; }
+    .lb-handle {
+      font-size: .75rem; font-weight: 700;
+      color: var(--chalk);
+      display: block;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .lb-result {
+      font-size: .6rem; font-weight: 600;
+      color: rgba(255,255,255,.3);
+    }
+    .lb-result.passed { color: var(--green); }
+    .lb-result.failed { color: var(--red); }
+    .lb-followers {
+      font-size: .55rem; font-weight: 700;
+      color: var(--chalk-dim);
+      flex-shrink: 0; text-align: right;
+    }
+    .lb-empty {
+      text-align: center; padding: 2rem 1rem;
+      font-size: .8rem; font-weight: 600;
+      color: var(--chalk-dim);
+    }
+    .cta-row {
+      margin-top: 1.5rem; text-align: center;
+    }
+    .btn-play {
+      display: inline-flex; align-items: center; gap: .4rem;
+      font-family: var(--font-body);
+      font-weight: 800; font-size: .9rem;
+      padding: .7rem 2rem;
+      border: 2px solid var(--chalk);
+      border-radius: var(--radius);
+      background: transparent;
+      color: var(--chalk);
+      text-decoration: none;
+      transition: background .15s;
+    }
+    .btn-play:hover { background: rgba(255,255,255,.08); }
+
+    @media (max-width: 500px) {
+      body { padding: 1.5rem 1rem 2rem; }
+      .lb-avatar { width: 26px; height: 26px; }
+    }
+  </style>
+</head>
+<body>
+  <h1>Leaderboard</h1>
+  <p class="subtitle">Are You Smarter Than a 5th Grader @ Alpha?</p>
+  <div class="lb-container" id="lb-container">
+    <div class="lb-empty">Loading...</div>
+  </div>
+  <div class="cta-row">
+    <a href="/" class="btn-play">Take the Quiz</a>
+  </div>
+
+  <script>
+    const GRADE_LABELS = {
+      "1": "1st Grade", "3": "3rd Grade", "5": "5th Grade",
+      "7": "7th Grade", "11": "11th Grade"
+    };
+
+    function formatFollowers(n) {
+      if (!n) return "";
+      if (n >= 1000000) return (n / 1000000).toFixed(1).replace(/\.0$/, "") + "M";
+      if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, "") + "K";
+      return String(n);
+    }
+
+    async function loadLeaderboard() {
+      const container = document.getElementById("lb-container");
+      try {
+        const res = await fetch("/api/leaderboard");
+        const data = await res.json();
+        if (!data.length) {
+          container.innerHTML = '<div class="lb-empty">No attempts yet. Be the first!</div>';
+          return;
+        }
+        const medals = ["\u{1F947}", "\u{1F948}", "\u{1F949}"];
+        container.innerHTML = data.map((entry, i) => {
+          const rank = i + 1;
+          const badge = rank <= 3 ? medals[rank - 1] : rank;
+          const topCls = rank <= 3 ? " lb-top" : "";
+          const resultLabel = entry.passed_all
+            ? "Smarter than all!"
+            : "Not smarter than " + (GRADE_LABELS[entry.grade_reached] || entry.grade_reached);
+          const resultCls = entry.passed_all ? "passed" : "failed";
+          const avatar = entry.avatar
+            ? `<img class="lb-avatar" src="${entry.avatar}" alt="" />`
+            : `<div class="lb-avatar"></div>`;
+          const followers = entry.followers_count
+            ? `<span class="lb-followers">${formatFollowers(entry.followers_count)} followers</span>`
+            : "";
+          return `<div class="lb-row${topCls}">
+            <span class="lb-rank">${badge}</span>
+            ${avatar}
+            <div class="lb-info">
+              <span class="lb-handle">${entry.handle}</span>
+              <span class="lb-result ${resultCls}">${resultLabel}</span>
+            </div>
+            ${followers}
+          </div>`;
+        }).join("");
+      } catch (e) {
+        container.innerHTML = '<div class="lb-empty">Failed to load leaderboard.</div>';
+      }
+    }
+
+    loadLeaderboard();
+  </script>
+</body>
+</html>
