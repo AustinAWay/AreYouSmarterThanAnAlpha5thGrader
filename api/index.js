@@ -133,8 +133,8 @@ app.get("/api/auth/twitter/callback", (req, res) => {
       const screenName = results.screen_name;
       const xHandle = "@" + screenName;
 
-      // Fetch profile image using the access token (v1.1 API, best-effort)
       let xAvatar = "";
+      let followersCount = 0;
       try {
         const profileData = await new Promise((resolve) => {
           oa.get(
@@ -149,18 +149,20 @@ app.get("/api/auth/twitter/callback", (req, res) => {
         if (profileData?.profile_image_url_https) {
           xAvatar = profileData.profile_image_url_https.replace("_normal", "");
         }
+        if (profileData?.followers_count != null) {
+          followersCount = profileData.followers_count;
+        }
       } catch (e) {
         console.error("Profile fetch error (non-fatal):", e.message);
       }
 
       try {
-        // Upsert user in DB
         const dbRes = await pool.query(
-          `INSERT INTO users (x_id, x_handle, x_name, x_avatar)
-           VALUES ($1, $2, $3, $4)
-           ON CONFLICT (x_id) DO UPDATE SET x_handle=$2, x_name=$3, x_avatar=$4
+          `INSERT INTO users (x_id, x_handle, x_name, x_avatar, followers_count)
+           VALUES ($1, $2, $3, $4, $5)
+           ON CONFLICT (x_id) DO UPDATE SET x_handle=$2, x_name=$3, x_avatar=$4, followers_count=$5
            RETURNING *`,
-          [xId, xHandle, screenName, xAvatar]
+          [xId, xHandle, screenName, xAvatar, followersCount]
         );
 
         const user = {
@@ -248,6 +250,7 @@ app.get("/api/leaderboard", async (req, res) => {
       SELECT DISTINCT ON (u.id)
         u.x_handle as handle,
         u.x_avatar as avatar,
+        u.followers_count,
         r.grade_reached,
         r.passed_all,
         r.total_correct,
@@ -258,12 +261,8 @@ app.get("/api/leaderboard", async (req, res) => {
       ORDER BY u.id, r.created_at DESC
     `);
 
-    const gradeRank = { "11": 5, "7": 4, "5": 3, "3": 2, "1": 1 };
     const sorted = result.rows.sort((a, b) => {
-      const ra = a.passed_all ? 99 : (gradeRank[a.grade_reached] || 0);
-      const rb = b.passed_all ? 99 : (gradeRank[b.grade_reached] || 0);
-      if (rb !== ra) return rb - ra;
-      return (b.total_correct || 0) - (a.total_correct || 0);
+      return (b.followers_count || 0) - (a.followers_count || 0);
     });
 
     res.json(sorted.slice(0, 20));

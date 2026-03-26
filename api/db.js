@@ -16,6 +16,7 @@ async function initDB() {
         x_handle TEXT,
         x_name TEXT,
         x_avatar TEXT,
+        followers_count INTEGER DEFAULT 0,
         created_at TIMESTAMP DEFAULT NOW()
       );
 
@@ -31,6 +32,8 @@ async function initDB() {
         answers JSONB,
         created_at TIMESTAMP DEFAULT NOW()
       );
+
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS followers_count INTEGER DEFAULT 0;
     `);
     console.log("Database tables ready");
   } finally {
