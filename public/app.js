@@ -715,12 +715,17 @@
     const passedIdx = highestPassed ? QUIZ_GRADES.indexOf(highestPassed) : -1;
     const passedAll = passedIdx === QUIZ_GRADES.length - 1;
     const nextGrade = QUIZ_GRADES[passedIdx + 1];
+    const pct = GRADE_INFO[highestPassed || "1"]?.globalPct || "";
     let text;
-    if (passedAll) text = `I'm Smarter Than an Alpha School 11th Grader 🎓\n${totalCorrect}/${state.answers.length} correct`;
-    else if (!highestPassed) text = `NOT smarter than an Alpha School 1st grader 💀\n${totalCorrect}/${state.answers.length} correct`;
-    else text = `NOT smarter than an Alpha School ${GRADE_LABELS[nextGrade]} student 😬\n${totalCorrect}/${state.answers.length} correct`;
-    text += `\n\nThink you can beat me?\n\n${QUOTE_TWEET_URL}`;
-    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`, "_blank", "width=600,height=450");
+    if (passedAll) {
+      text = `I just passed every grade at Alpha School 🎓\n\n${totalCorrect}/${state.answers.length} correct\n\nApparently smarter than 99.7% of the world population. Your turn 👇`;
+    } else if (!highestPassed) {
+      text = `I just failed 1st grade at Alpha School 💀\n\nCouldn't even get past what their youngest students learn.\n\nNo way you do better 👇`;
+    } else {
+      const failedAt = nextGrade ? GRADE_LABELS[nextGrade] : "???";
+      text = `I just failed ${failedAt} at Alpha School 😬\n\n${totalCorrect}/${state.answers.length} correct — ${pct ? `smarter than ${pct} of the world but ` : ""}not smarter than their students.\n\nBet you can't beat me 👇`;
+    }
+    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(QUOTE_TWEET_URL)}`, "_blank", "width=600,height=450");
 
     // Unlock leaderboard after sharing
     const lbWrapper = $("#results-lb-wrapper");
