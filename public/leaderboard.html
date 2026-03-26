@@ -156,7 +156,7 @@
           const topCls = rank <= 3 ? " lb-top" : "";
           const resultLabel = entry.passed_all
             ? "Smarter than all!"
-            : "Not smarter than " + (GRADE_LABELS[entry.grade_reached] || entry.grade_reached);
+            : "Not smarter than " + (GRADE_LABELS[entry.grade_reached] || "1st Grade");
           const resultCls = entry.passed_all ? "passed" : "failed";
           const avatar = entry.avatar
             ? `<img class="lb-avatar" src="${entry.avatar}" alt="" />`

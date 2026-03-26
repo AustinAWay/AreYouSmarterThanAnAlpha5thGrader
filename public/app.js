@@ -244,7 +244,7 @@
 
   function lbResult(grade, passedAll) {
     if (passedAll) return "Smarter than all!";
-    const label = GRADE_LABELS[grade] || grade;
+    const label = GRADE_LABELS[grade] || "1st Grade";
     return `${t("notSmarterThan")} ${label}`;
   }
 
