@@ -208,13 +208,22 @@ app.get("/api/auth/dev", async (req, res) => {
 });
 
 // Auth status
-app.get("/api/auth/me", (req, res) => {
+app.get("/api/auth/me", async (req, res) => {
   const user = getUserFromCookie(req);
-  if (user) {
-    res.json(user);
-  } else {
-    res.status(401).json({ error: "Not authenticated" });
+  if (!user) return res.status(401).json({ error: "Not authenticated" });
+
+  // Verify user still exists in DB
+  try {
+    const check = await pool.query("SELECT id FROM users WHERE id = $1", [user.id]);
+    if (check.rows.length === 0) {
+      res.clearCookie("authed_user", { path: "/" });
+      return res.status(401).json({ error: "User not found" });
+    }
+  } catch (e) {
+    // DB error — still return user from cookie as fallback
   }
+
+  res.json(user);
 });
 
 // Logout
@@ -246,6 +255,17 @@ app.get("/api/health", async (req, res) => {
 app.post("/api/results", async (req, res) => {
   const user = getUserFromCookie(req);
   if (!user) return res.status(401).json({ error: "Not authenticated" });
+
+  // Verify user still exists in DB (may have been deleted)
+  try {
+    const check = await pool.query("SELECT id FROM users WHERE id = $1", [user.id]);
+    if (check.rows.length === 0) {
+      res.clearCookie("authed_user", { path: "/" });
+      return res.status(401).json({ error: "User not found. Please log in again." });
+    }
+  } catch (e) {
+    console.error("User check error:", e);
+  }
 
   const { grade_reached, passed_all, total_correct, total_questions, best_streak, language, answers } = req.body;
 
