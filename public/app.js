@@ -96,8 +96,6 @@
     $("#free-input").placeholder = t("placeholder");
     $("#btn-submit-free").textContent = t("submit");
     $("#gt-continue").textContent = t("continue");
-    $("#btn-restart").textContent = t("playAgain");
-    $(".methodology summary").textContent = t("scored");
     renderLeaderboard();
   }
 
@@ -115,6 +113,13 @@
         $("#auth-avatar").src = authedUser.avatar || "";
         $("#auth-handle").textContent = authedUser.handle;
         userHandle = authedUser.handle;
+        $("#btn-start").disabled = false;
+      } else if (location.hostname === "localhost" || location.hostname === "127.0.0.1") {
+        authedUser = { id: 0, handle: "@localhost", name: "Local Dev", avatar: "" };
+        userHandle = "@localhost";
+        $("#auth-prompt").classList.add("hidden");
+        $("#auth-user").classList.remove("hidden");
+        $("#auth-handle").textContent = "@localhost";
         $("#btn-start").disabled = false;
       }
     } catch (e) {}
@@ -248,27 +253,33 @@
     renderLeaderboard();
   }
 
-  function renderLeaderboard() {
+  function buildLeaderboardHTML() {
     const medals = ["🥇", "🥈", "🥉"];
-    const container = $("#lb-rows");
-    container.innerHTML = "";
     if (leaderboardData.length === 0) {
-      container.innerHTML = '<div class="lb-empty">No attempts yet. Be the first!</div>';
-      return;
+      return '<div class="lb-empty">No attempts yet. Be the first!</div>';
     }
+    let html = "";
     leaderboardData.forEach((entry, i) => {
       const rank = i + 1;
       const badge = rank <= 3 ? medals[rank - 1] : rank;
       const cls = rank <= 3 ? ` lb-top` : "";
-      container.innerHTML += `
-        <div class="lb-row${cls}">
+      const isYou = authedUser && entry.handle === authedUser.handle;
+      html += `
+        <div class="lb-row${cls}${isYou ? " lb-you" : ""}">
           <span class="lb-rank">${badge}</span>
           <div class="lb-info">
-            <span class="lb-handle">${entry.handle}</span>
+            <span class="lb-handle">${entry.handle}${isYou ? " (you)" : ""}</span>
             <span class="lb-result">${lbResult(entry.grade_reached, entry.passed_all)}</span>
           </div>
         </div>`;
     });
+    return html;
+  }
+
+  function renderLeaderboard() {
+    $("#lb-rows").innerHTML = buildLeaderboardHTML();
+    const resultsLb = $("#results-lb-rows");
+    if (resultsLb) resultsLb.innerHTML = buildLeaderboardHTML();
   }
 
   fetchLeaderboard();
@@ -349,7 +360,7 @@
 
   let gradeTransitionCb = null;
 
-  const METHODOLOGY_TEXT = `These percentages are estimates — and they reflect a deeply unfortunate reality about global educational inequality, not something to celebrate. Billions of people lack access to the quality of education that would allow them to reach these levels. Population base: 8.1 billion, including ~650M children under 5 and ~750M adults with zero formal schooling (~1.4B who can't clear even the lowest bar). Among children 5–17 (~2.3B), the World Bank estimates learning poverty at ~53% in low/middle-income countries. In Sub-Saharan Africa it's ~87%. Among adults 18+ (~5.8B), PIAAC 2023 data shows ~25% of OECD adults score at Level 1 or below in numeracy — in the US it's 34%. Globally, only ~44% of adults over 25 have completed upper secondary education. I share these numbers to highlight the scale of the global education gap, not to diminish anyone.`;
+  const METHODOLOGY_TEXT = `Population base: 8.1 billion. Among children 5–17 (~2.3B), the World Bank estimates learning poverty at ~53% in low/middle-income countries. Among adults 18+ (~5.8B), PIAAC 2023 data shows ~25% of OECD adults score at Level 1 or below in numeracy. Globally, only ~44% of adults over 25 have completed upper secondary education.`;
 
   function showGradeTransition(grade, cb) {
     const el = $("#grade-transition");
@@ -668,9 +679,6 @@
     });
     $("#rc-bars").innerHTML = barsHtml;
 
-    $("#rc-streak").textContent = `🔥 ${state.bestStreak}`;
-    $("#rc-correct").textContent = `${totalCorrect}/${state.answers.length}`;
-
     if (highestPassed && GRADE_INFO[highestPassed]) {
       const info = GRADE_INFO[highestPassed];
       $("#rc-context").classList.remove("hidden");
@@ -684,15 +692,11 @@
       $("#rc-context").classList.add("hidden");
     }
 
-    let rows = '<table class="bd-table"><tr><th>Grade</th><th>Subject</th><th></th></tr>';
-    state.answers.forEach((a) => {
-      const q = QUESTIONS.find((x) => x.id === a.questionId);
-      rows += `<tr class="${a.correct ? "r-ok" : "r-bad"}">
-        <td>${GRADE_LABELS[q.grade]}</td><td>${q.subject}</td><td>${a.correct ? "✓" : "✗"}</td>
-      </tr>`;
-    });
-    rows += "</table>";
-    $("#methodology-breakdown").innerHTML = rows;
+    // Lock the leaderboard until they share
+    const lbWrapper = $("#results-lb-wrapper");
+    if (lbWrapper) lbWrapper.classList.remove("unlocked");
+
+    renderLeaderboard();
 
     if (passedAll && typeof confetti !== "undefined") {
       confetti({ particleCount: 200, spread: 90, origin: { y: 0.5 } });
@@ -703,6 +707,8 @@
 
   // ═══════════ SHARE ═══════════
 
+  const QUOTE_TWEET_URL = "https://x.com/AustinA_Way/status/2036211604984111577";
+
   $("#btn-share-x").addEventListener("click", () => {
     const { highestPassed } = computeGrade();
     const totalCorrect = state.answers.filter((a) => a.correct).length;
@@ -710,25 +716,17 @@
     const passedAll = passedIdx === QUIZ_GRADES.length - 1;
     const nextGrade = QUIZ_GRADES[passedIdx + 1];
     let text;
-    if (passedAll) text = `I'm Smarter Than an Alpha School 11th Grader 🎓\n${totalCorrect}/${state.answers.length} correct · 🔥${state.bestStreak} streak`;
+    if (passedAll) text = `I'm Smarter Than an Alpha School 11th Grader 🎓\n${totalCorrect}/${state.answers.length} correct`;
     else if (!highestPassed) text = `NOT smarter than an Alpha School 1st grader 💀\n${totalCorrect}/${state.answers.length} correct`;
-    else text = `NOT smarter than an Alpha School ${GRADE_LABELS[nextGrade]} student 😬\n${totalCorrect}/${state.answers.length} correct · 🔥${state.bestStreak} streak`;
-    text += "\n\nThink you can beat me?";
-    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(window.location.href)}`, "_blank", "width=600,height=450");
+    else text = `NOT smarter than an Alpha School ${GRADE_LABELS[nextGrade]} student 😬\n${totalCorrect}/${state.answers.length} correct`;
+    text += `\n\nThink you can beat me?\n\n${QUOTE_TWEET_URL}`;
+    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`, "_blank", "width=600,height=450");
+
+    // Unlock leaderboard after sharing
+    const lbWrapper = $("#results-lb-wrapper");
+    if (lbWrapper) lbWrapper.classList.add("unlocked");
   });
 
-  $("#btn-download").addEventListener("click", async () => {
-    const card = $("#results-card");
-    card.classList.add("capturing");
-    try {
-      const canvas = await html2canvas(card, { backgroundColor: "#1e3a2e", scale: 2, useCORS: true, logging: false });
-      const link = document.createElement("a");
-      link.download = "alpha-school-result.png";
-      link.href = canvas.toDataURL("image/png");
-      link.click();
-    } catch (e) { console.error(e); }
-    card.classList.remove("capturing");
-  });
 
   // ═══════════ EXIT-INTENT WARNING ═══════════
 
@@ -792,12 +790,4 @@
     }
   });
 
-  // ═══════════ RESTART ═══════════
-
-  $("#btn-restart").addEventListener("click", () => {
-    exitShownThisQuiz = false;
-    hideExitWarning();
-    showScreen("start");
-    runChalkAnimation();
-  });
 })();
